@@ -14,18 +14,74 @@ void swap(int *a, int *b)
 /*************************************************  
  *              Simple Insertion Sort
  *************************************************/
+void SimpleInsertionSort(int a[], int len)
+{
+    int i, j, tmp;
 
+    for(i=1; i<len; i++){
+        tmp = a[i];
+        for(j=i-1; j>=0 && a[j]>tmp; j--){
+           a[j+1] = a[j]; //move backward
+        }
+        a[j+1] = tmp;
+    }
+}
 
 
 /*************************************************  
  *              Binary Insertion Sort
  *************************************************/
+void BinaryInsertionSort(int a[], int len)
+{
+    int i, j, tmp; 
+    int low, high, mid; 
+
+    for(i=1; i<len; i++){
+        tmp = a[i];
+        low = 0;
+        high = i-1;
+        while(low <= high){ // find the inserted location by binary serach
+            mid = (low+high)/2;
+            if(a[mid] > tmp) {
+                high = mid - 1; 
+            }
+            else {
+                low = mid + 1;
+            }
+        }
+        for(j=i-1; j>=high+1; j--) { // move backward
+            a[j+1] = a[j];
+        }
+        a[high+1] = tmp; 
+    }
+}
 
 
 
 /*************************************************  
  *              Shell Sort
  *************************************************/
+void SSort(int a[], int len, int delt)
+{
+    int i, j, tmp;
+    for(i = delt; i < len; i += delt){
+        tmp = a[i];
+        for(j = i-delt; j >= 0 && tmp < a[j]; j -= delt){
+            a[j+delt] = a[j];//move backward
+        }
+        a[j+delt] = tmp;
+    } 
+
+}
+
+void ShellSort(int a[], int len)
+{
+    int delt;
+
+    for(delt = len/2; delt > 0; delt/=2){ // test
+        SSort(a, len, delt);
+    }
+}
 
 
 
@@ -33,15 +89,38 @@ void swap(int *a, int *b)
 /*************************************************  
  *              Bubble Sort
  *************************************************/
-
-
+void BubbleSort(int a[], int len) { int flag = 0; int i, j;
+    for(i=0; i<len-1; i++){
+        for(j=0; j<len-1-i; j++){
+            if(a[j] > a[j+1]) {
+                SWAP(a[j], a[j+1]);
+                flag = 1;
+            }
+        }
+        if(flag == 0) break; //for sorted sequence
+    }
+}
 
 
 /*************************************************  
  *              Simple Selection Sort
  *************************************************/
+void SimpleSelectionSort(int a[], int len)
+{
+    int min, k, i, j;
 
-
+    for(i=0; i<len-1; i++){
+        min = a[i];
+        k = i;
+        for(j=i+1; j<len; j++){
+            if(min > a[j]){
+                min = a[j];
+                k = j; // save the minimum index
+            }
+        }
+        SWAP(a[i], a[k]);
+    }
+}
 
 
 /*************************************************  
@@ -88,16 +167,16 @@ void MergeSort(int a[], int len)
 void AdjustDown(int a[], int i, int len)
 {
     int tmp = a[i];
-    int k; //标记子节点
+    int k; //child node
 
     for(k=2*i+1; k<len; k=2*k+1) {
-        if(k+1 < len && a[k+1] > a[k]) k++; //沿较大的子节点向下筛选
-        if(tmp >= a[k]) { //筛选结束 
+        if(k+1 < len && a[k+1] > a[k]) k++; //find the largest child
+        if(tmp >= a[k]) { // break
             break;
         } 
         else {
-            a[i] = a[k]; //将a[k]调整到双亲节点上
-            i = k; // 继续向下筛选
+            a[i] = a[k]; //move the child node to the parent index
+            i = k; 
         }
     }
     a[i] = tmp;
@@ -116,7 +195,7 @@ void HeapSort(int a[], int len)
     BuildMaxHeap(a, len);
 
     while(len>1){
-        SWAP(a[0], a[len-1]); //输出堆顶元素
+        SWAP(a[0], a[len-1]);
         AdjustDown(a, 0, --len);
     }
 }
@@ -172,9 +251,15 @@ int main(int argc, char *argv[])
     //int array[] = {87, 45, 78, 32, 17, 65, 53, 9};
     int n = sizeof(array)/sizeof(array[0]);
     
+    SimpleInsertionSort(array, n);
+    BinaryInsertionSort(array, n);
+    ShellSort(array, n);
+    BubbleSort(array, n);
+    SimpleSelectionSort(array, n);
     MergeSort(array, n);
-    //QuickSort(array, n);
-    //HeapSort(array, n);
+    QuickSort(array, n);
+    HeapSort(array, n);
+
     for(i = 0; i < n; i++) {
         printf("%d ", array[i]);
     }
