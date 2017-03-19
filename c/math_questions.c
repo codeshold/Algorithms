@@ -1,8 +1,8 @@
 #include <stdio.h>
 
-//x,yµÄ×îĞ¡¹«±¶Êı(lcm, gcd)ºÍ×î´ó¹«Ô¼ÊıµÄ³Ë»ıµÈÓÚx*y
+//x,yçš„æœ€å°å…¬å€æ•°(lcm, gcd)å’Œæœ€å¤§å…¬çº¦æ•°çš„ä¹˜ç§¯ç­‰äºx*y
 
-//Çî¾Ù·¨
+//ç©·ä¸¾æ³•
 int GenGCD1(int a, int b)
 {
     int i;
@@ -14,7 +14,7 @@ int GenGCD1(int a, int b)
 
     return i;
 }
-//Õ·×ªÏà³ı
+//è¾—è½¬ç›¸é™¤
 int GenGCD2(int a, int b)
 {
     int c;
@@ -25,7 +25,7 @@ int GenGCD2(int a, int b)
     }
     return a;
 }
-//Ïà¼õ·¨
+//ç›¸å‡æ³•
 int GenGCD3(int a, int b)
 {
     while(a != b) {
@@ -39,7 +39,7 @@ int GenGCD3(int a, int b)
 
     return a;
 }
-//Çî¾Ù·¨
+//ç©·ä¸¾æ³•
 int GenLCM1(int a, int b)
 {
     int i;
@@ -51,7 +51,7 @@ int GenLCM1(int a, int b)
     return i;
 
 }
-//ĞÔÖÊ
+//æ€§è´¨
 int GenLCM2(int a, int b)
 {
      int m = a*b;
@@ -62,8 +62,8 @@ int GenLCM2(int a, int b)
 
 
 
-// ÅĞ¶ÏnÊÇ·ñÎªËØÊı
-// ¸´ÔÓ¶ÈÎªO(sqrt(n)/2)
+// åˆ¤æ–­næ˜¯å¦ä¸ºç´ æ•°
+// å¤æ‚åº¦ä¸ºO(sqrt(n)/2)
 int PrimeCheck(int n)
 {
     int i;
@@ -88,7 +88,7 @@ int PrimeCheck(int n)
 }
 
 
-//Éú³ÉËØÊıĞòÁĞ
+//ç”Ÿæˆç´ æ•°åºåˆ—
 int GenPrime(int primes[], int num)
 {
     int j, count, flag, i;
@@ -104,7 +104,7 @@ int GenPrime(int primes[], int num)
     for(i = 5,  count = 2; count < num; i += 2) {
         flag = 0;
         for(j = 1; primes[j]*primes[j] <= i; j++) {
-            if(i % primes[j] == 0) { //²»ÊÇËØÊı
+            if(i % primes[j] == 0) { //ä¸æ˜¯ç´ æ•°
                 flag = -1;
                 break;
             }
