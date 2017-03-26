@@ -11,7 +11,7 @@ void swap(int *a, int *b)
 }
 
 
-/*************************************************  
+/*************************************************
  *              Simple Insertion Sort
  *************************************************/
 void SimpleInsertionSort(int a[], int len)
@@ -28,13 +28,13 @@ void SimpleInsertionSort(int a[], int len)
 }
 
 
-/*************************************************  
+/*************************************************
  *              Binary Insertion Sort
  *************************************************/
 void BinaryInsertionSort(int a[], int len)
 {
-    int i, j, tmp; 
-    int low, high, mid; 
+    int i, j, tmp;
+    int low, high, mid;
 
     for(i=1; i<len; i++){
         tmp = a[i];
@@ -43,7 +43,7 @@ void BinaryInsertionSort(int a[], int len)
         while(low <= high){ // find the inserted location by binary serach
             mid = (low+high)/2;
             if(a[mid] > tmp) {
-                high = mid - 1; 
+                high = mid - 1;
             }
             else {
                 low = mid + 1;
@@ -52,13 +52,13 @@ void BinaryInsertionSort(int a[], int len)
         for(j=i-1; j>=high+1; j--) { // move backward
             a[j+1] = a[j];
         }
-        a[high+1] = tmp; 
+        a[high+1] = tmp;
     }
 }
 
 
 
-/*************************************************  
+/*************************************************
  *              Shell Sort
  *************************************************/
 void SSort(int a[], int len, int delt)
@@ -70,7 +70,7 @@ void SSort(int a[], int len, int delt)
             a[j+delt] = a[j];//move backward
         }
         a[j+delt] = tmp;
-    } 
+    }
 
 }
 
@@ -86,7 +86,7 @@ void ShellSort(int a[], int len)
 
 
 
-/*************************************************  
+/*************************************************
  *              Bubble Sort
  *************************************************/
 void BubbleSort(int a[], int len) { int flag = 0; int i, j;
@@ -102,7 +102,7 @@ void BubbleSort(int a[], int len) { int flag = 0; int i, j;
 }
 
 
-/*************************************************  
+/*************************************************
  *              Simple Selection Sort
  *************************************************/
 void SimpleSelectionSort(int a[], int len)
@@ -123,15 +123,15 @@ void SimpleSelectionSort(int a[], int len)
 }
 
 
-/*************************************************  
- *              Merge Sort 
+/*************************************************
+ *              Merge Sort
  *************************************************/
 int g_tmp[MAX_NUM] = {0,};
 
 void Merge(int *a, int low, int mid, int high)
 {
     int i, j, k;
-    
+
     for(i=low; i<=high; i++) g_tmp[i] = a[i];
     for(i=low, j=mid+1, k=low; i<=mid && j<=high; k++) {
         if(g_tmp[i] <= g_tmp[j]) {
@@ -161,8 +161,8 @@ void MergeSort(int a[], int len)
 }
 
 
-/*************************************************  
- *              Heap Sort 
+/*************************************************
+ *              Heap Sort
  *************************************************/
 void AdjustDown(int a[], int i, int len)
 {
@@ -173,10 +173,10 @@ void AdjustDown(int a[], int i, int len)
         if(k+1 < len && a[k+1] > a[k]) k++; //find the largest child
         if(tmp >= a[k]) { // break
             break;
-        } 
+        }
         else {
             a[i] = a[k]; //move the child node to the parent index
-            i = k; 
+            i = k;
         }
     }
     a[i] = tmp;
@@ -185,7 +185,7 @@ void AdjustDown(int a[], int i, int len)
 void BuildMaxHeap(int a[], int len)
 {
     int i;
-    for(i=(len-1)/2; i>0; i--){
+    for(i=len/2 - 1; i>=0; i--){
         AdjustDown(a, i, len);
     }
 }
@@ -201,8 +201,8 @@ void HeapSort(int a[], int len)
 }
 
 
-/*************************************************  
- *              Quick Sort 
+/*************************************************
+ *              Quick Sort
  *************************************************/
 int Partition(int a[], int left, int right)
 {
@@ -250,14 +250,14 @@ int main(int argc, char *argv[])
     int i;
     //int array[] = {87, 45, 78, 32, 17, 65, 53, 9};
     int n = sizeof(array)/sizeof(array[0]);
-    
-    SimpleInsertionSort(array, n);
-    BinaryInsertionSort(array, n);
-    ShellSort(array, n);
-    BubbleSort(array, n);
-    SimpleSelectionSort(array, n);
-    MergeSort(array, n);
-    QuickSort(array, n);
+
+    //SimpleInsertionSort(array, n);
+    //BinaryInsertionSort(array, n);
+    //ShellSort(array, n);
+    //BubbleSort(array, n);
+    //SimpleSelectionSort(array, n);
+    //MergeSort(array, n);
+    //QuickSort(array, n);
     HeapSort(array, n);
 
     for(i = 0; i < n; i++) {
