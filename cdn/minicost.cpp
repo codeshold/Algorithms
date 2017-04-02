@@ -7,17 +7,18 @@
 #include <stdlib.h>
 #include <deque>
 #include <string>
-//#include <iostream>
-//#include <stack>
 #include <map>
+#include <ctime>
+#include <iostream>
 
 using namespace std;
 
 
 #define MAXN (1000+2)       // 网络节点数 + S + D
-#define MAXM 5000           // 5000条就行
+#define MAXM 10000           // 5000条就行
 #define INF 1000000           // 带宽消耗总需求是[0, 5000]
 #define MAX_CONSUME 500     // 消费节点最大数
+
 
 
 typedef struct edge
@@ -29,10 +30,12 @@ typedef struct edge
     int cost;       // 单位费用
     int flow;       // 边上的流
 } edge;
-
 edge g_edge[MAXM];      // 边集
 edge *g_list[MAXN];     // 每个顶点的链表表头指针
-int E_COUNT = -1;       // 边计数器
+int E_COUNT = -1;       // 边计数器, 从0开始
+bool g_init_flag = true; // true表示要保存边的信息
+int g_matrix[MAXM][4];    // from, to , cost, residual
+int M_COUNT = -1;
 
 
 typedef struct consume
@@ -44,34 +47,163 @@ consume g_consume[MAX_CONSUME]; // 消费节点
 map<int, int> g_consume_map;
 int V_CONSUME;  // 消费节点数
 int V_NUM;      // 顶点数
-int E_NUM;      // 链路数
 int SRV_COST;   // 服务器成本
 
 
+// spfa && argument, 每次使用前初始化
 int g_inq[MAXN];            // 每个顶点是否在队列中（1：在， 0: 不在）
 int g_dist[MAXN];           // 当前最短路径
 int g_path[MAXN];           // 最短路径中，当前节点的前驱节点
 edge *g_path_edge[MAXN];    // 最短路径中，当前节点的前驱边
-
 deque<int> Q;   // 队列中的节点为顶点序列号
+
 
 int V_SRC;      // 源节点
 int V_DST;      // 目的节点
-
 int g_flow;     // 纪录总流量
-
-
-deque<edge*> S;     // 栈
-string g_result;    // 保存路径结果
+string g_result;        // 保存路径结果
 int g_flow_count = 0;   // 保存路径总数
 
-inline void add_print_flow(int flow);
-void dfs_path();
+
+static void dfs_path();
+static int mcmf();
+static void init_list_edge();
+static bool spfa();
+static int argument();
+static int mcmf();
+static void dfs_path();
+
+
+char *cdn_minicost()
+{
+
+    int need_sum = 0;   // 总费用
+    int min_cost = INF; // 记录全局当前最小费用
+    int cdn_cost;
+    int cost;
+    int i;
+    int n;
+    clock_t start = clock();
+    char buf[10];
+
+    V_NUM += 2;
+    V_DST = V_NUM - 2;
+    V_SRC = V_NUM - 1;
+
+    // 1. 添加汇聚节点
+    for(i = 0; i < V_CONSUME; i++)
+    {
+        add_edge(g_consume[i].netnode, V_DST, 0, g_consume[i].need);
+        need_sum += g_consume[i].need;
+    }
+    g_init_flag = false;
+
+    // 2. 判断是否存在可行解
+    for(i = 0; i < V_CONSUME; i++)
+    {
+        add_edge(V_SRC, g_consume[i].netnode, 0, INF);
+    }
+    cdn_cost = V_CONSUME * SRV_COST;
+    min_cost = mcmf();
+    min_cost += cdn_cost;
+
+    if(g_flow != need_sum)
+    {
+        sprintf(buf, "%s", "NA");
+        g_result = buf;
+        return (char*)g_result.c_str();
+    }
+    else
+    {
+        dfs_path();
+        n = sprintf(buf, "%d\n", g_flow_count);
+        g_result.insert(0, buf, n);
+        PRINT("[%d]%d\n%s\n", __LINE__, min_cost, g_result.c_str());
+    }
+
+    // 3. 迭代
+    int cdn_nodes[] = {7, 13, 15, 22, 37, 38, 43};
+    int cdn_num = 7;
+    do
+    {
+        init_list_edge();
+
+        // 选定CDN服务器位置，添加边
+        cdn_cost = cdn_num * SRV_COST;
+        for(i = 0; i < cdn_num; i++)
+        {
+            add_edge(V_SRC, cdn_nodes[i], 0, INF);
+        }
+
+        // 计算当前最大流、最小费用
+        cost = mcmf();
+        cost += cdn_cost;
+        //PRINT("[%d]cost:%d", __LINE__, cost-cdn_cost);
+        if(g_flow == need_sum && cost < min_cost)
+        {
+            min_cost = cost;
+            // 保存路径信息
+            dfs_path();
+            n = sprintf(buf, "%d\n", g_flow_count);
+            g_result.insert(0, buf, n);
+            //PRINT("[%d]\n%s", __LINE__, g_result.c_str());
+        }
+        else
+        {
+            //PRINT("need_sum:%d, g_flow:%d, cost:%d\n", need_sum, g_flow, cost);
+        }
+    } while(0);
+    // while(clock() - start < EXIT_SECOND * CLOCKS_PER_SEC);
+
+
+    PRINT("\ng_flow:%d, need_sum:%d, g_flow_count: %d, min_cost: %d\n\n", g_flow, need_sum, g_flow_count, min_cost);
+
+    return (char*)g_result.c_str();
+}
+
+
+static void init_list_edge()
+{
+    int i;
+
+    memset(g_list, 0, MAXN * sizeof(g_list[0]));
+    memset(g_edge, 0, MAXM * sizeof(g_edge[0]));
+    E_COUNT = -1;
+
+    for(i = 0; i <= M_COUNT; i++)
+    {
+        add_edge(g_matrix[i][0], g_matrix[i][1], g_matrix[i][2], g_matrix[i][3]);
+    }
+}
+
+
+void set_num(int vNum, int linkNum, int consumerNum, int srvcost)
+{
+    V_NUM = vNum;
+    V_CONSUME = consumerNum;
+    SRV_COST = srvcost;
+}
+
+void set_consume(int index, int netnode, int need)
+{
+    g_consume[index] = {netnode, need};
+    g_consume_map[netnode] = index;
+    //PRINT("netnode:%d, index:%d\n", netnode, index);
+}
 
 //插入邻接表, cost 表示单位费用; res 表示容量
 void add_edge(int from, int to, int cost, int res)
 {
     //PRINT("%d %d %d %d\n", from , to, res, cost);
+    if(g_init_flag)
+    {
+        M_COUNT++;
+        g_matrix[M_COUNT][0] = from;
+        g_matrix[M_COUNT][1] = to;
+        g_matrix[M_COUNT][2] = cost;
+        g_matrix[M_COUNT][3] = res;
+
+    }
     edge e1 = {g_list[from], 0, to, res, cost, 0};
     edge e2 = {g_list[to], 0, from, 0, -cost, 0};
 
@@ -86,7 +218,7 @@ void add_edge(int from, int to, int cost, int res)
 
 
 // true 表示找到了最短路径
-bool spfa()
+static bool spfa()
 {
     int i;
     int cur, ver;
@@ -99,6 +231,8 @@ bool spfa()
         g_inq[i] = 0;  // 顶点不在队列中
     }
     Q.clear();
+    memset(g_path_edge, 0, MAXN * sizeof(g_path_edge[0]));
+
     Q.push_back(V_SRC);
     g_dist[V_SRC] = 0;
     g_path[V_SRC] = -1; //V_SRC; // -1
@@ -131,7 +265,7 @@ bool spfa()
 }
 
 //增广路算法，寻找增广路并调整流量, 返回调整的费用
-int argument()
+static int argument()
 {
     int i;
     int delta = INF;     // 可改进量
@@ -165,12 +299,13 @@ int argument()
     return flow_cost;
 }
 
-
-
 // 返回总费用
-int mcmf()
+static int mcmf()
 {
     int flow_cost = 0;
+
+    // 初始化
+    g_flow = 0;
 
     while(spfa())
     {
@@ -180,115 +315,21 @@ int mcmf()
     return flow_cost;
 }
 
-
-char *cdn_minicost()
-{
-
-    int need_sum = 0;
-    int min_cost = INF;
-
-    // 1. 添加汇聚节点
-    int i;
-    V_DST = V_NUM;
-    V_NUM++;
-    for(i = 0; i < V_CONSUME; i++)
-    {
-        add_edge(g_consume[i].netnode, V_DST, 0, g_consume[i].need);
-        need_sum += g_consume[i].need;
-    }
-    //PRINT("consume:%d\n", V_CONSUME);
-
-    do
-    {
-        // 2. 选定CDN服务器位置
-        int cdn_nodes[] = {7, 13, 15, 22, 37, 38, 43};
-        int cdn_num = 7;
-        //int cdn_nodes[] = {6, 7};
-        //int cdn_num = 2;
-        int cdn_cost = cdn_num * SRV_COST;
-
-        // 3. 添加源节点
-        V_SRC = V_NUM;
-        V_NUM++;
-        for(i = 0; i < cdn_num; i++)
-        {
-            add_edge(V_SRC, cdn_nodes[i], 0, INF);
-        }
-
-        // 4. 计算当前最大流、最小费用
-        int cost = mcmf();
-        cost += cdn_cost;
-        if(g_flow == need_sum && cost < min_cost) {
-            min_cost = cost;
-        }
-        else
-        {
-            PRINT("need_sum:%d, g_flow:%d, cost:%d\n", need_sum, g_flow, cost);
-        }
-    } while(0);
-
-
-    // 寻找路径，并打印
-    string str;
-    char buf[10] = {0};
-
-    if(g_flow < need_sum)
-    {
-        sprintf(buf, "%s", "NA");
-        str = buf;
-    }
-    else
-    {
-        dfs_path(); // 路径信息存在全局变量g_result 和 g_flow_count中
-        //PRINT("======\n");
-        sprintf(buf, "%d\n", g_flow_count);
-        str = buf;
-        str += g_result;
-    }
-    PRINT("\ng_flow:%d, need_sum:%d, g_flow_count: %d, min_cost: %d\n\n", g_flow, need_sum, g_flow_count, min_cost);
-
-    return (char*)str.c_str();
-}
-
-void set_num(int vNum, int linkNum, int consumerNum, int srvcost)
-{
-    V_NUM = vNum;
-    E_NUM = linkNum;
-    V_CONSUME = consumerNum;
-    SRV_COST = srvcost;
-}
-
-void set_consume(int index, int netnode, int need)
-{
-    g_consume[index] = {netnode, need};
-    g_consume_map[netnode] = index;
-    //PRINT("netnode:%d, index:%d\n", netnode, index);
-}
-
-inline void add_print_flow(int flow, int netnode)
-{
-    int i;
-
-    for(i = 0; i < S.size(); i++)
-    {
-        g_result += to_string(S[i]->to) + " ";
-        //PRINT("%d ", S[i]->to);
-    }
-    g_result += to_string(g_consume_map[netnode]) + " " + to_string(flow) + "\n";
-    g_flow_count++;
-    //PRINT("netnode: %d, consume: %d, flow: %d\n", netnode, g_consume_map[netnode], flow);
-}
-
-// 找流量路径
-void dfs_path()
+// 找流量路径, 结果存放在g_result中
+static void dfs_path()
 {
     edge *p;
     int min = INF;
     int i;
+    deque<edge*> S;     // 栈
 
     memset(g_inq, 0, sizeof(g_inq)); //初始化为0
     p = g_list[V_SRC];
     g_inq[V_SRC] = 1;
+    g_flow_count = 0;
+
+    g_result.clear();
+    g_result = "";
 
     while(1)
     {
@@ -317,10 +358,18 @@ void dfs_path()
         }
         if(p->to == V_DST)
         {
-            // 保存路径信息
-            add_print_flow(min, p->pair->to);
+            // 1. 保存路径信息
+            //add_print_flow(min, p->pair->to);
+            for(i = 0; i < S.size(); i++)
+            {
+                g_result += to_string(S[i]->to) + " ";
+                //PRINT("%d ", S[i]->to);
+            }
+            g_result += to_string(g_consume_map[p->pair->to]) + " " + to_string(min) + "\n";
+            g_flow_count++;
+            //PRINT("netnode: %d, consume: %d, flow: %d\n", netnode, g_consume_map[netnode], flow);
 
-            // 调整flow, 并更新min
+            // 2. 调整flow, 并更新min
             int min_new = INF;
             for(i = 0; i < S.size(); i++)
             {
@@ -416,3 +465,18 @@ void debug_print()
     }
 }*/
 
+/*
+inline void add_print_flow(int flow, int netnode)
+{
+    int i;
+
+    for(i = 0; i < S.size(); i++)
+    {
+        g_result += to_string(S[i]->to) + " ";
+        //PRINT("%d ", S[i]->to);
+    }
+    g_result += to_string(g_consume_map[netnode]) + " " + to_string(flow) + "\n";
+    g_flow_count++;
+    //PRINT("netnode: %d, consume: %d, flow: %d\n", netnode, g_consume_map[netnode], flow);
+}
+*/
