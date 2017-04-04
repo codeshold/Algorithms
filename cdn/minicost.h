@@ -2,10 +2,10 @@
 // Created by Wenfeng Shi on 17/4/2.
 //
 
-#ifndef __MINICOST_H__
-#define __MINICOST_H__
+#ifndef HUAWEI_MINICOST_H
+#define HUAWEI_MINICOST_H
 
-#define EXIT_SECOND 75
+#define EXIT_SECOND 75*60
 void add_edge(int from, int to, int cost, int res);
 
 char *cdn_minicost(void);
@@ -20,4 +20,4 @@ void set_consume(int index, int netnode, int need);
 #define PRINT(...)
 #endif
 
-#endif //__MINICOST_H__
+#endif //HUAWEI_MINICOST_H
