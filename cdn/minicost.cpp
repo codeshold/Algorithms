@@ -9,7 +9,6 @@
 #include <deque>
 #include <string>
 #include <map>
-#include <set>
 
 using namespace std;
 
@@ -39,7 +38,6 @@ typedef struct edge
 } edge;
 edge g_edge[MAXM];      // 边集
 edge *g_list[MAXN];     // 每个顶点的链表表头指针
-int g_node_matrix[MAXN][MAXN] = {{0,},}; // 节点邻接矩阵
 int E_COUNT = -1;       // 边计数器, 从0开始
 bool g_init_flag = true; // true表示要保存边的信息
 int g_matrix[MAXM][4];    // from, to , cost, residual
@@ -50,11 +48,7 @@ typedef struct node{
     int degree;
     int capacity;
 } node;
-node g_node_sort_cap[MAXN];         // 按capacity升序排列
-node g_node_sort_deg[MAXN];         // 按degree升序排列
-node g_node_sort_cost[MAXN];        // 按cost = 0.2*capacity + 0.8*degree 升序排列
-int g_sort_type = 0;                // 0 按照capacity升序取点，1 按照degree取点, 2 按照cost取点
-//set<int> *g_node_set[MAXN];
+node g_node_set[MAXN];         // 纪录每个顶点的度，流量等信息
 
 typedef struct consume
 {
@@ -91,12 +85,7 @@ bool g_exit_flag = false;   // 递归中，全局退出标志！
 
 deque<edge*> S;     // 栈 for dfs_path()
 
-
-
-long g_count_old = 0;
-long g_count_new = 0;
-
-static int mcmf(int srv_cost);
+static int mcmf();
 static void init_list_edge();
 static bool spfa();
 static int argument();
@@ -104,7 +93,7 @@ static void dfs_path();
 static void node_set_sort(int flag, int count); // 升序排序(1 表示按capacity排序； 2 表示按degree排序
 static void calculate(int nodes[], int count, int need);
 static void cal_all_combination(node arr[],int data[],int start, int end,int index , int r, int rneed, int need);
-static bool check_path();
+
 
 char *cdn_minicost()
 {
@@ -121,7 +110,7 @@ char *cdn_minicost()
     node_set_sort(1, v_count);
 //    for(i = 0; i < v_count; i++)
 //    {
-//        printf("[%d] %d: %d %d \n", __LINE__, i, g_node_sort_cap[i].v, g_node_sort_cap[i].capacity);
+//        printf("[%d] %d: %d %d \n", __LINE__, i, g_node_set[i].v, g_node_set[i].capacity);
 //    }
 
     V_NUM += 2;
@@ -142,11 +131,11 @@ char *cdn_minicost()
         add_edge(V_SRC, g_consume[i].netnode, 0, INF);
     }
     cdn_cost = V_CONSUME * SRV_COST;
-
-    g_min_cost = mcmf(cdn_cost);
+    g_min_cost = mcmf();
+    g_min_cost += cdn_cost;
     g_min_flow = g_flow;
-    //PRINT("[%d]%d, %d, %d \n", __LINE__, g_min_cost, cdn_cost, g_min_cost-cdn_cost);
-    if(g_flow != need_sum)
+
+    if(g_min_flow != need_sum)
     {
         sprintf(buf, "%s", "NA");
         g_result = buf;
@@ -158,39 +147,19 @@ char *cdn_minicost()
         g_min_flow_count = g_flow_count;
         n = sprintf(buf, "%d\n\n", g_min_flow_count);
         g_result.insert(0, buf, n);
-        PRINT("[%d] need_sum:%d, g_min_flow:%d, g_min_cost: %d, g_min_flow_count: %d \n\n",
-              __LINE__, need_sum, g_min_flow, g_min_cost, g_min_flow_count);
-//        check_path();
-//        return (char*)g_result.c_str();
+        PRINT("[%d]g_min_flow:%d, need_sum:%d, g_min_flow_count: %d, g_min_cost: %d\n\n",
+              __LINE__, g_min_flow, need_sum, g_min_flow_count, g_min_cost);
+        //PRINT("[%d]%d\n%s\n", __LINE__, min_cost, g_result.c_str());
     }
 
-    // test
-//////////////////////////////////////////////////////////////////////////////////
-    //case 1
-//    int arr[] = {6, 7, 13, 17, 35, 41, 48};  //need_sum:381, g_min_flow:381, g_min_cost: 2136/2520, g_min_flow_count: 9
-    // case 3
-//    int arr[] = {10, 22, 26, 29, 35};      //need_sum:340, g_min_flow:340, g_min_cost: 2111/2700, g_min_flow_count: 14
-//    int arr[] = {10, 22, 26, 35};          //need_sum:340, g_min_flow:340, g_min_cost: 2111/2700, g_min_flow_count: 18
-    // case 4
-    int arr[] = {12, 15, 20, 22, 26, 37, 48};   //need_sum:284, g_min_flow:284, g_min_cost: 1967/2160, g_min_flow_count: 13
-
-    calculate(arr, sizeof(arr)/sizeof(arr[0]), need_sum);
-    PRINT("[%d] need_sum:%d, g_min_flow:%d, g_min_cost: %d, g_min_flow_count: %d \n\n",
-          __LINE__, need_sum, g_min_flow, g_min_cost, g_min_flow_count);
-    check_path();
-    return (char*)g_result.c_str();
-
-//////////////////////////////////////////////////////////////////////////////////
-
     // 3. 选定CDN服务器位置
-    int lower = 1 + need_sum / g_node_sort_cap[v_count-1].capacity;  // 最少节点数
+    int lower = 1 + need_sum / g_node_set[v_count-1].capacity;  // 最少节点数
     int *nodes = (int*)calloc(V_CONSUME-1, sizeof(int));        // 保存CDN服务器组合数
-    g_sort_type = 0; // 按照capacity
 
     for(;lower < V_CONSUME; lower++)
     {
         // 结果保存在g_result中
-        cal_all_combination(g_node_sort_cap, nodes, 0, v_count-1 ,0 ,lower, need_sum, need_sum);
+        cal_all_combination(g_node_set, nodes, 0, v_count-1 ,0 ,lower, need_sum, need_sum);
         memset(nodes, 0, (V_CONSUME-1)*sizeof(int));
     }
 
@@ -201,7 +170,7 @@ char *cdn_minicost()
     {
         PRINT("[%d]time!!!!!!\n", __LINE__);
     }
-    PRINT("[%d]statistical information--g_mcmf_count:%d(%d, %d); g_dfs_path_count:%d(%d, %d), all time:%ld\n",
+    PRINT("[%d]statistical information--g_mcmf_count:%d(%d, %d); g_dfs_path_count:%d(%d, %d), all time:%d\n",
            __LINE__, g_mcmf_count, g_mcmf_time, g_mcmf_time/g_mcmf_count,
            g_dfs_path_count, g_dfs_path_time, g_dfs_path_time/g_dfs_path_count,
            (clock()-g_start_time));
@@ -308,7 +277,7 @@ static int argument()
 }
 
 // 返回总费用
-static int mcmf(int srv_cost)
+static int mcmf()
 {
     int flow_cost = 0;
 
@@ -326,7 +295,7 @@ static int mcmf(int srv_cost)
 #ifdef _DEBUG
     g_mcmf_time += clock()-begin;   // statistics
 #endif
-    return flow_cost + srv_cost;
+    return flow_cost;
 }
 
 // 找流量路径, 结果存放在g_result中
@@ -450,14 +419,10 @@ void add_edge(int from, int to, int cost, int res)
         // 更新顶点的度数和容量信息
         if(from != V_SRC && from != V_DST && to != V_SRC && to != V_DST)
         {
-            g_node_sort_cap[from].v = from;
-            g_node_sort_cap[from].degree++;
-            g_node_sort_cap[from].capacity += res;
-            // 存储邻接矩阵
-            g_node_matrix[from][to] = res;
-//            PRINT("[%d]g_node_matrix[%d][%d] = %d\n", __LINE__, from, to, res);
+            g_node_set[from].v = from;
+            g_node_set[from].degree++;
+            g_node_set[from].capacity += res;
         }
-        //g_node_set[from]->;
     }
     edge e1 = {g_list[from], 0, to, res, cost, 0};
     edge e2 = {g_list[to], 0, from, 0, -cost, 0};
@@ -493,24 +458,23 @@ static void node_set_sort(int flag, int count)
 {
     if(flag == 1)
     {
-        qsort(g_node_sort_cap, count, sizeof(g_node_sort_cap[0]), cmp_cap);
+        qsort(g_node_set, count, sizeof(g_node_set[0]), cmp_cap);
     }
     else if(flag == 2)
     {
-        qsort(g_node_sort_cap, count, sizeof(g_node_sort_cap[0]), cmp_degree);
+        qsort(g_node_set, count, sizeof(g_node_set[0]), cmp_degree);
     }
 }
 
 static void calculate(int nodes[], int count, int need)
 {
-    int cdn_cost = 0, cost = 0;
-    int n = 0;
+    int cdn_cost, cost;
+    int n;
     char buf[10];
 
     init_list_edge();
 
     //PRINT("[%d]CDN node: ", __LINE__, count);
-    n = count;
     while(count > 0)
     {
         add_edge(V_SRC, nodes[count-1], 0, INF);
@@ -518,8 +482,9 @@ static void calculate(int nodes[], int count, int need)
         count--;
     }
     //PRINT(" \n");
-    cdn_cost = n * SRV_COST;
-    cost = mcmf(cdn_cost); // 计算当前最大流、最小费用，包含服务器费用
+    cdn_cost = count * SRV_COST;
+    cost = mcmf(); // 计算当前最大流、最小费用
+    cost += cdn_cost;
     //PRINT("[%d]cost:%d", __LINE__, cost-cdn_cost);
     if(g_flow == need && cost < g_min_cost)
     {
@@ -530,8 +495,8 @@ static void calculate(int nodes[], int count, int need)
         g_min_flow_count = g_flow_count;
         n = sprintf(buf, "%d\n\n", g_flow_count);
         g_result.insert(0, buf, n);
-        PRINT("[%d] need_sum:%d, g_min_flow:%d, g_min_cost: %d, g_min_flow_count: %d \n\n",
-              __LINE__, need, g_min_flow, g_min_cost, g_min_flow_count);
+        PRINT("[%d]g_min_flow:%d, need_sum:%d, g_min_flow_count: %d, g_min_cost: %d\n\n",
+              __LINE__, g_min_flow, need, g_min_flow_count, g_min_cost);
     }
 }
 
@@ -540,8 +505,6 @@ static void calculate(int nodes[], int count, int need)
 static void cal_all_combination(node arr[],int data[],int start, int end,int index , int r, int rneed, int need)
 {
     if(g_exit_flag) return;
-
-    int i, j, count, tmp, sum;
 
     if(index == r ){
         if(rneed <= 0)
@@ -552,29 +515,11 @@ static void cal_all_combination(node arr[],int data[],int start, int end,int ind
 //                PRINT("%d ", data[i]);
 //            }
 //            PRINT("\n");
-            // 计算节点内部流（重复计算了的)
-            sum = 0;
-            for(i = 0; i < r-1; i++)
+            // 数据处理
+            calculate(data, r, need);
+            if(clock() - g_start_time > EXIT_SECOND * CLOCKS_PER_SEC)
             {
-                for(j = i+1; j < r; j++)
-                {
-                    //PRINT("[%d]%d %d", __LINE__, data[i], data[j]);
-                    sum += g_node_matrix[data[i]][data[j]];
-                }
-            }
-            g_count_old++;
-            //PRINT("[%d]%ld \n", __LINE__, g_count_old);
-            if(2*sum + rneed <= 0)
-            {
-                g_count_new++;
-                // 计算函数
-                calculate(data, r, need);
-                if(clock() - g_start_time > EXIT_SECOND * CLOCKS_PER_SEC)
-                {
-                    g_exit_flag = true;
-                    PRINT("[%d]old_count: %ld; new_count: %ld, diff:%ld\n",
-                          __LINE__, g_count_old, g_count_new, g_count_old-g_count_new);
-                }
+                g_exit_flag = true;
             }
         }
         return;
@@ -582,23 +527,16 @@ static void cal_all_combination(node arr[],int data[],int start, int end,int ind
     //如果剩下的数组个数不够个就直接返回。
     if(end - start + 1 < r - index) return;
 
-    // 按照不同的排序方式，剔除不满足条件的节点
-//    if(g_sort_type == 0) // capacity
-//    {
-        i = end;
-        count = 0;
-        tmp = 0;
-        //PRINT("=== %d %d %d\n", i, count, tmp);
-        // 剩下的数组个数容量之和达不到rneed
-        for(count = r-index; count > 0; count--)
-        {
-            tmp += arr[i--].capacity;
-        }
-        if(tmp < rneed)
-        {
-            return;
-        }
-//    }
+    //剩下的数组个数之和达不到rneed
+    int i = end;
+    int count = 0;
+    int tmp = 0;
+    //PRINT("=== %d %d %d\n", i, count, tmp);
+    for(count = r-index; count > 0; count--)
+    {
+        tmp += arr[i--].capacity;
+    }
+    if(tmp < rneed) return;
 
     data[index] = arr[end].v; //记录当前数据
     cal_all_combination(arr, data , start, end-1, index+1, r, rneed-arr[end].capacity, need); //包括end
@@ -606,121 +544,7 @@ static void cal_all_combination(node arr[],int data[],int start, int end,int ind
 }
 
 
-#include <vector>
-static bool check_path() {
-    PRINT("================================[check]================================================\n");
-
-    init_list_edge();
-
-    bool error_flag = false;
-    char *strc = new char[strlen(g_result.c_str()) + 1];
-    char *line;
-    char *node;
-    vector<string> resultVec;
-    deque<int> checkQ;
-    int n = 0, flow = 0, from = 0, to = 0, len = 0;
-    char *outer_ptr = NULL;
-    char *inner_ptr = NULL;
-
-    strcpy(strc, g_result.c_str());
-    line = strtok_r(strc, "\n", &outer_ptr);
-    n = atoi(line);
-    if (n != g_min_flow_count) {
-        PRINT("[%d] 总的流数不相等！ %d != %d\n", __LINE__, n, g_min_flow_count);
-        error_flag = true;
-    }
-    PRINT("[%d] 总的流数为 %d \n", __LINE__, n);
-    line = strtok_r(NULL, "\n", &outer_ptr);
-
-    // 解析流量情况
-    while (line != NULL) {
-//        PRINT("[%d]%s\n", __LINE__, line);
-        // 1. 解析每个flow的情况
-        node = strtok_r(line, " ", &inner_ptr);
-        PRINT("[%d]", __LINE__);
-        while (node != NULL) {
-            n = atoi(node);
-            checkQ.push_back(n);
-            PRINT("%d ", n);
-            node = strtok_r(NULL, " ", &inner_ptr);
-        }
-        flow = n;   //获取了容量
-        PRINT("\n");
-
-        // 2. 核对信息
-        from = checkQ.front();  // 获取每条flow的第一个节点
-        checkQ.pop_front();
-        len = checkQ.size();
-        if (len == 2)    // 消费节点直接和服务器相连
-        {
-            to = checkQ.front();    // get consume
-            checkQ.pop_front();
-            checkQ.pop_front();
-
-            PRINT("[%d]cdn服务器节点 %5d 和 消费节点 %5d 直接连接，使用了 %5d 带宽\n", __LINE__, from, to, flow);
-            if (flow > g_consume[to].need) {
-                PRINT("[ERROR]消费节点 %5d 的剩余需求仅仅是 %5d, 但是提供了 %5d 的流\n",
-                      to, g_consume[to].need, flow);
-                error_flag = true;
-            } else {
-                g_consume[to].need -= flow; // 消费节点需求减少了
-            }
-        } else {
-            int i;
-            for (i = 0; i < len - 2; i++) // 不处理最后两个节点(consume, flow)
-            {
-                to = checkQ.front();
-                checkQ.pop_front();
-                if (flow > g_node_matrix[from][to]) {
-                    PRINT("[%d] 节点%d->节点%d 的流量超出了剩余的可用带宽(可用:%d, 需要%d)\n",
-                          __LINE__, from, to, g_node_matrix[from][to], flow);
-                    error_flag = true;
-                }
-                else
-                {
-                    g_node_matrix[from][to] -= flow;
-                }
-                from = to;
-            }
-            to = checkQ.front(); // get consume
-            checkQ.pop_front(); // del consume
-            checkQ.pop_front(); // 去掉最后的元素，即容量值
-            if (flow > g_consume[to].need) {
-                PRINT("[ERROR]消费节点 %5d 的剩余需求仅仅是 %5d, 但是提供了 %5d 的流\n",
-                      to, g_consume[to].need, flow);
-                error_flag = true;
-            }
-            else
-            {
-                g_consume[to].need -= flow; // 消费节点的需求减少
-            }
-            if (!checkQ.empty()) {
-                PRINT("[%d]队列不为空！！！！！\n", __LINE__);
-                error_flag = true;
-            }
-        }
-        line = strtok_r(NULL, "\n", &outer_ptr);
-    }
-    int i;
-    for (i = 0; i < V_CONSUME; i++)
-    {
-        if(g_consume[i].need != 0)
-        {
-            PRINT("[%d] 没有满足消费节点 %5d 的需求，其还需要 %5d 的流量\n\n", __LINE__, i, g_consume[i].need);
-        }
-    }
-
-    delete[] strc;
-
-    if(error_flag)
-    {
-        PRINT("\n\n[%d]出现错误啦！！！！傻逼！！！\n\n", __LINE__);
-    }
-
-    PRINT("================================[check over]================================================\n");
-
-    return error_flag;
-}
+//int g_consume[501]; // 保存消费节点对应的
 /*void init()
 {
     int s, d, r, c;
