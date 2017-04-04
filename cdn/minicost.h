@@ -5,7 +5,7 @@
 #ifndef HUAWEI_MINICOST_H
 #define HUAWEI_MINICOST_H
 
-#define EXIT_SECOND 85
+#define EXIT_SECOND 75*60
 void add_edge(int from, int to, int cost, int res);
 
 char *cdn_minicost(void);
